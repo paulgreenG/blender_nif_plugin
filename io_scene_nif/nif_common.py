@@ -105,7 +105,7 @@ class NifCommon:
         "EnvironmentIntensityIndex",
         "LightCubeMapIndex",
         "ShadowTextureIndex"]
-    """Names (ordered by default index) of shader texture slots for
+    """Names (ordered by default index) of shader texture slots fo
     Sid Meier's Railroads and similar games.
     """
     
@@ -187,31 +187,36 @@ class NifCommon:
 
     def get_extend_from_flags(self, flags):
         if flags & 6 == 4: # 0b100
-            return Blender.IpoCurve.ExtendTypes.CONST
+            #PG--As far as I can see, blender no longer has these equivalent types. For now,
+            #just return a string here and handle appropriately. Cyclic and Constant/Linear
+            #require different methods of application, so cannot just return an enum for a
+            #parameter to an fcurve
+            return "CONST"
         elif flags & 6 == 0: # 0b000
-            return Blender.IpoCurve.ExtendTypes.CYCLIC
+            return "CYCLIC"
 
         NifLog.warn("Unsupported cycle mode in nif, using clamped.")
-        return Blender.IpoCurve.ExtendTypes.CONST
+        #return Blender.IpoCurve.ExtendTypes.CONST
+        return "CONST"
 
     def get_b_ipol_from_n_ipol(self, n_ipol):
         if n_ipol == NifFormat.KeyType.LINEAR_KEY:
-            return Blender.IpoCurve.InterpTypes.LINEAR
+            return bpy.types.Keyframe.interpolation.LINEAR
         elif n_ipol == NifFormat.KeyType.QUADRATIC_KEY:
-            return Blender.IpoCurve.InterpTypes.BEZIER
+            return bpy.types.Keyframe.interpolation.BEZIER
         elif n_ipol == 0:
             # guessing, not documented in nif.xml
-            return Blender.IpoCurve.InterpTypes.CONST
+            return bpy.types.Keyframe.interpolation.CONST
         
         NifLog.warn("Unsupported interpolation mode ({0}) in nif, using quadratic/bezier.".format(n_ipol))
-        return Blender.IpoCurve.InterpTypes.BEZIER
+        return bpy.types.Keyframe.interpolation.BEZIER
 
     def get_n_ipol_from_b_ipol(self, b_ipol):
-        if b_ipol == Blender.IpoCurve.InterpTypes.LINEAR:
+        if b_ipol == bpy.types.Keyframe.interpolation.LINEAR:
             return NifFormat.KeyType.LINEAR_KEY
-        elif b_ipol == Blender.IpoCurve.InterpTypes.BEZIER:
+        elif b_ipol == bpy.types.Keyframe.interpolation.BEZIER:
             return NifFormat.KeyType.QUADRATIC_KEY
-        elif b_ipol == Blender.IpoCurve.InterpTypes.CONST:
+        elif b_ipol == bpy.types.Keyframe.interpolation.CONST:
             return NifFormat.KeyType.CONST_KEY
         
         NifLog.warn("Unsupported interpolation mode ({0}) in blend, using quadratic/bezier.".format(b_ipol))
@@ -227,3 +232,4 @@ class NifCommon:
         
         NifLog.warn("Unsupported blend type ({0}) in material, using apply mode APPLY_MODULATE".format(b_blend_type))
         return NifFormat.ApplyMode.APPLY_MODULATE
+

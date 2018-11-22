@@ -40,6 +40,8 @@
 
 import mathutils
 
+from io_scene_nif.utility.nif_global import NifOp
+
 
 class NifError(Exception):
     """A simple custom exception class for export errors."""
@@ -63,6 +65,9 @@ def import_matrix(niBlock, relative_to=None):
     n_rot_mat[0].xyz = n_rot_mat3.m_11, n_rot_mat3.m_21, n_rot_mat3.m_31
     n_rot_mat[1].xyz = n_rot_mat3.m_12, n_rot_mat3.m_22, n_rot_mat3.m_32
     n_rot_mat[2].xyz = n_rot_mat3.m_13, n_rot_mat3.m_23, n_rot_mat3.m_33    
+    #n_rot_mat[0].xyz = n_rot_mat3.m_11, n_rot_mat3.m_12, n_rot_mat3.m_13
+    #n_rot_mat[1].xyz = n_rot_mat3.m_21, n_rot_mat3.m_22, n_rot_mat3.m_23
+    #n_rot_mat[2].xyz = n_rot_mat3.m_31, n_rot_mat3.m_32, n_rot_mat3.m_33    
     # b_rot_mat = n_rot_mat * b_scale_mat.transposed()
     b_rot_mat = n_rot_mat
     
@@ -80,23 +85,34 @@ def decompose_srt(matrix):
     """Keeping commented code as potentially required for armatures 
     Suspect thought it is due to old style matrix access."""
     # TODO Verify nolonger needed for armatures
-    
-    # scale_rot = rot_quat.to_matrix()
-    # b_scale = mathutils.Vector((scale_vec[0] ** 0.5,\
+
+    #PG--Original was attempting to get the determinate of the "rotation part" of the matrix, so create it below
+    rotmat = rot_quat.to_matrix()
+    scalemat = mathutils.Matrix( ((scale_vec[0], 0.0, 0.0), (0.0, scale_vec[1], 0.0), (0.0, 0.0, scale_vec[2])) )
+    scalemat[0][0] = scale_vec[0]
+    scalemat[1][1] = scale_vec[1]
+    scalemat[2][2] = scale_vec[2]
+    scale_rot = rotmat * scalemat
+    #PG-- DOn't need these 4 lines
+    #b_scale = mathutils.Vector((scale_vec[0] ** 0.5,\
     #                             scale_vec[1] ** 0.5,\
     #                             scale_vec[2] ** 0.5))
+
     # and fix their sign
-    # if (scale_rot.determinant() < 0): b_scale.negate()
+    #PG--if (scale_rot.determinant() < 0): b_scale.negate()
+    if (scale_rot.determinant() < 0): scale_vec.negate()
     # only uniform scaling
-    # allow rather large error to accomodate some nifs
-    if abs(scale_vec[0]-scale_vec[1]) + abs(scale_vec[1]-scale_vec[2]) > 0.02:
-        raise NifError(
-            "Non-uniform scaling not supported."
-            " Workaround: apply size and rotation (CTRL-A).")
-    # b_scale = b_scale[0]
-    # b_rot = scale_rot * b_scale
-    # b_trans = trans_vec
-    return [scale_vec[0], rot_quat.to_matrix(), trans_vec]
+    if (abs(scale_vec[0]-scale_vec[1]) >= NifOp.props.epsilon
+            or abs(scale_vec[1]-scale_vec[2]) >= NifOp.props.epsilon):
+        NifLog.warn("Corrupt rotation matrix in nif: geometry errors may result.")
+    #{G--b_scale = b_scale[0]
+    b_scale = scale_vec[0]
+    # get rotation matrix
+    b_rot = scale_rot * b_scale
+    # get translation
+    b_trans = trans_vec
+    # done!
+    return [b_scale, b_rot, b_trans]
 
 
 def find_property(niBlock, property_type):
